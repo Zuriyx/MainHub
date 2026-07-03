@@ -1150,7 +1150,7 @@ end
 
 local LocalTechsTab = Window:Tab({ Title = "Legit Supa (Beta)", Icon = "cpu" })
 
-local SupaSection = LocalTechsTab:Section({ Title = "Supa Tech" })
+local MainSection = LocalTechsTab:Section({ Title = "Supa Tech" })
 
 local supaToggle = MainSection:Toggle({
     Title = "Enable Supa Tech",
@@ -1160,7 +1160,7 @@ local supaToggle = MainSection:Toggle({
     end
 })
 
-SupaSection:Keybind({
+MainSection:Keybind({
     Title = "Toggle Keybind",
     Value = "None",
     Callback = function()
@@ -1168,6 +1168,7 @@ SupaSection:Keybind({
         supaToggle:Set(supaEnabled)
     end
 })
+
 
 local UserInputService, VirtualInputManager, TweenService, Players = game:GetService("UserInputService"), game:GetService("VirtualInputManager"), game:GetService("TweenService"), game:GetService("Players")
 
@@ -1308,9 +1309,9 @@ end)
 kButtonText.MouseButton1Click:Connect(runKyotoMacro)
 
 local LocalTechs1Tab = Window:Tab({ Title = "Legit Kyoto Macro (Beta)", Icon = "cpu" })
-local KyotSection = LocalTechs1Tab:Section({ Title = "Legit Kyoto Macro (Beta)" })
+local MainSection = LocalTechs1Tab:Section({ Title = "Legit Kyoto Macro (Beta)" })
 
-KyotSection:Toggle({
+MainSection:Toggle({
     Title = "Show Button (Mobile Only)",
     Value = false,
     Callback = function(state)
@@ -1318,7 +1319,7 @@ KyotSection:Toggle({
     end
 })
 
-KyotSection:Toggle({
+MainSection:Toggle({
     Title = "Draggable (Mobile Only)",
     Value = false,
     Callback = function(state)
@@ -1326,7 +1327,7 @@ KyotSection:Toggle({
     end
 })
 
-KyotSection:Keybind({
+MainSection:Keybind({
     Title = "Macro Keybind (PC Only)",
     Value = "None",
     Callback = function()
@@ -1334,9 +1335,9 @@ KyotSection:Keybind({
     end
 })
 
-local SettingsKyotSection = LocalTechs1Tab:Section({ Title = "Settings" })
+local SettingsSection = LocalTechs1Tab:Section({ Title = "Settings" })
 
-SettingsKyotSection:Input({
+SettingsSection:Input({
     Title = "Side Dash Delay",
     Value = tostring(sideDashDelay),
     Callback = function(val)
@@ -1347,7 +1348,7 @@ SettingsKyotSection:Input({
     end
 })
 
-SettingsKyotSection:Input({
+SettingsSection:Input({
     Title = "Lethal Whirlwind Stream Delay",
     Value = tostring(lethalDelay),
     Callback = function(val)
