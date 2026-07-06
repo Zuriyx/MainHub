@@ -1417,3 +1417,207 @@ local LocalTechs3Tab = Window:Tab({
     Icon = "cpu",
     Locked = "true",
 })
+
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+local LocalPlayer = Players.LocalPlayer
+
+local AutoBlockData = {
+    isEnabled = false,
+    autoM1AfterBlock = false,
+    connection = nil,
+    lastDetected = {},
+    lastVelocity = {},
+    lastPredict = {},
+    normalRange = 15,
+    predictThreshold = 35,
+    predictCooldown = 0.01,
+    detectIDs = {
+        ["10469493270"]=true,["10469630950"]=true,["10469639222"]=true,["10469643643"]=true,
+        ["13532562418"]=true,["13532600125"]=true,["13532604085"]=true,["13294471966"]=true,
+        ["13491635433"]=true,["13296577783"]=true,["13295919399"]=true,["13295936866"]=true,
+        ["13370310513"]=true,["13390230973"]=true,["13378751717"]=true,["13378708199"]=true,
+        ["14004222985"]=true,["13997092940"]=true,["14001963401"]=true,["14136436157"]=true,
+        ["15271263467"]=true,["15240216931"]=true,["15240176873"]=true,["15162694192"]=true,
+        ["16515503507"]=true,["16515520431"]=true,["16515448089"]=true,["16552234590"]=true,
+        ["17889458563"]=true,["17889461810"]=true,["17889471098"]=true,["17889290569"]=true,
+        ["123005629431309"]=true,["100059874351664"]=true,["104895379416342"]=true,["134775406437626"]=true,
+        ["15259161390"]=true
+    }
+}
+
+local function blockAction(distance, delayTime)
+    local char = LocalPlayer.Character
+    if not char then return end
+    local communicate = char:FindFirstChild("Communicate")
+    if not communicate then return end
+
+    communicate:FireServer({Goal = "KeyPress", Key = Enum.KeyCode.F})
+    task.wait(delayTime)
+    communicate:FireServer({Goal = "KeyRelease", Key = Enum.KeyCode.F})
+
+    if AutoBlockData.autoM1AfterBlock and distance <= AutoBlockData.normalRange then
+        communicate:FireServer({Goal = "LeftClick", Mobile = true})
+        task.wait(0.3)
+        communicate:FireServer({Goal = "LeftClickRelease", Mobile = true})
+    end
+end
+
+local function spamReleases()
+    local char = LocalPlayer.Character
+    if not char then return end
+    local communicate = char:FindFirstChild("Communicate")
+    if not communicate then return end
+
+    for i = 1, 5 do
+        communicate:FireServer({Goal = "KeyRelease", Key = Enum.KeyCode.F})
+        communicate:FireServer({Goal = "LeftClickRelease", Mobile = true})
+        task.wait(0.01)
+    end
+end
+
+local function predictIncoming(model, distance)
+    local hrp = model:FindFirstChild("HumanoidRootPart")
+    local char = LocalPlayer.Character
+    if not hrp or not char or not char:FindFirstChild("HumanoidRootPart") then return false end
+
+    local now = tick()
+    if AutoBlockData.lastPredict[model] and now - AutoBlockData.lastPredict[model] < AutoBlockData.predictCooldown then
+        return false
+    end
+
+    local lastV = AutoBlockData.lastVelocity[model]
+    local currentV = hrp.Velocity.Magnitude
+    AutoBlockData.lastVelocity[model] = currentV
+
+    if lastV and (currentV - lastV) >= AutoBlockData.predictThreshold then
+        AutoBlockData.lastPredict[model] = now
+        return true
+    end
+
+    local dot = hrp.CFrame.LookVector:Dot((char.HumanoidRootPart.Position - hrp.Position).Unit)
+    if dot > 0.75 and distance <= 55 then
+        AutoBlockData.lastPredict[model] = now
+        return true
+    end
+
+    return false
+end
+
+local function stopDetection()
+    if AutoBlockData.connection then
+        AutoBlockData.connection:Disconnect()
+        AutoBlockData.connection = nil
+    end
+end
+
+local function startDetection()
+    stopDetection()
+    AutoBlockData.connection = RunService.RenderStepped:Connect(function()
+        local char = LocalPlayer.Character
+        if not char or not char:FindFirstChild("HumanoidRootPart") then return end
+        
+        local rootPos = char.HumanoidRootPart.Position
+        local liveFolder = workspace:FindFirstChild("Live")
+        if not liveFolder then return end
+
+        for _, model in pairs(liveFolder:GetChildren()) do
+            if model:IsA("Model") and model ~= char then
+                local humanoid = model:FindFirstChildOfClass("Humanoid")
+                local hrp = model:FindFirstChild("HumanoidRootPart")
+                
+                if humanoid and hrp then
+                    local animator = humanoid:FindFirstChild("Animator")
+                    if animator then
+                        local distance = (hrp.Position - rootPos).Magnitude
+                        local tracks = animator:GetPlayingAnimationTracks()
+                        local foundAnim = false
+                        
+                        for _, track in pairs(tracks) do
+                            if track.Animation and track.Animation.AnimationId then
+                                local animId = track.Animation.AnimationId:match("%d+")
+                                if animId then
+                                    local predicted = predictIncoming(model, distance)
+                                    if AutoBlockData.detectIDs[animId] and distance <= AutoBlockData.normalRange and (track.TimePosition <= 0.08 or predicted) then
+                                        task.spawn(function()
+                                            blockAction(distance, 0.2)
+                                        end)
+                                        foundAnim = true
+                                        break
+                                    end
+                                end
+                            end
+                        end
+
+                        if not foundAnim and AutoBlockData.lastDetected[model] then
+                            task.spawn(spamReleases)
+                            AutoBlockData.lastDetected[model] = nil
+                        elseif foundAnim then
+                            AutoBlockData.lastDetected[model] = true
+                        end
+                    end
+                end
+            end
+        end
+    end)
+end
+
+Window:Section({ Title = "Utility" })
+
+local ABT = Window:Tab({ Title = "Auto Block (Beta)", Icon = "shield" })
+local ABM = ABT:Section({ Title = "Auto Block" })
+local ABC = ABT:Section({ Title = "Configuration" })
+
+ABM:Toggle({
+    Title = "Enable Auto Block",
+    Value = false,
+    Callback = function(state)
+        AutoBlockData.isEnabled = state
+        if AutoBlockData.isEnabled then
+            startDetection()
+        else
+            stopDetection()
+        end
+    end
+})
+
+ABM:Toggle({
+    Title = "Auto M1 After Block",
+    Value = false,
+    Callback = function(state)
+        AutoBlockData.autoM1AfterBlock = state
+    end
+})
+
+ABC:Input({
+    Title = "Normal Block Range",
+    Placeholder = tostring(AutoBlockData.normalRange),
+    Callback = function(text)
+        local num = tonumber(text)
+        if num then
+            AutoBlockData.normalRange = num
+        end
+    end
+})
+
+ABC:Input({
+    Title = "Prediction Sensitivity",
+    Placeholder = tostring(AutoBlockData.predictThreshold),
+    Callback = function(text)
+        local num = tonumber(text)
+        if num then
+            AutoBlockData.predictThreshold = num
+        end
+    end
+})
+
+ABC:Input({
+    Title = "Prediction Cooldown",
+    Placeholder = tostring(AutoBlockData.predictCooldown),
+    Callback = function(text)
+        local num = tonumber(text)
+        if num then
+            AutoBlockData.predictCooldown = num
+        end
+    end
+})
