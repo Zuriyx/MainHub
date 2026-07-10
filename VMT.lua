@@ -1220,7 +1220,7 @@ local T = {
     en = false, sk = "Twisted", s3D = true, col = Color3.fromRGB(0, 255, 200),
     pts = {}, p3D = {}, segs = {}, ink = 0, mInk = 41,
     on = false, det = false, dsh = false, sNm = "", sSel = "None",
-    gRepo = "TuUsuario/TuRepositorio", -- PON TU REPOSITORIO AQUÍ
+    gRepo = "",
     gSel = "None", gFiles = {}, 
     anims = {Twisted = {"13294471966"}, Uppercut = {"10503381238", "13379003796"}}
 }
