@@ -1,46 +1,351 @@
---[Free source]
+--[[
+*Important*
+ts is free source and i use Ai to fix sum bugs bcs im too lazy to do myself
+features:
+ > Fflag Executor, Save flags system, Public flags lib.
+ > Shiftlock image lib.
+ > Free Gamepasses: Double Page, Extra Slots, Search Bar, Get All Emotes (Limited, Free, Kill), Get All Cosmetics, Titles, Auras.
+ > Utility: Legit Supa Tech, Kyoto Macro (bug), DashPath, Side Dash Assist, Auto Block.
+ > Hit Effects
 
+Just enjoy ts script ur free to use anything here to use in u scripts.
+]]
 
-
+--other
 local HttpService = game:GetService("HttpService")
 local UserInputService = game:GetService("UserInputService")
 local isPC = UserInputService.KeyboardEnabled
 
 local cloneref = cloneref or clonereference or function(instance) return instance end
-local WindUI = loadstring(game:HttpGet("https://raw.githubusercontent.com/Footagesus/WindUI/main/dist/main.lua"))()
+--Load WindUi thing
+local UiLib = loadstring(game:HttpGet("https://raw.githubusercontent.com/Footagesus/WindUI/main/dist/main.lua"))()
+--First sum important stuff
+--Aba + EmoteD
+Players = game:GetService("Players")
+RunService = game:GetService("RunService")
+UIS = game:GetService("UserInputService")
+TweenService = game:GetService("TweenService")
+Workspace = game:GetService("Workspace")
+VirtualInputManager = game:GetService("VirtualInputManager")
 
-WindUI:SetFont("rbxassetid://12187371840")
+LocalPlayer = Players.LocalPlayer
+Camera = Workspace.CurrentCamera
 
-local Window = WindUI:CreateWindow({
-    Title = "VMT hub 1.1.5",
-    Desc = "Made by Zuri",
-    Icon = "",
-    Theme = "Violet",
-    Colors = {
-        Background = Color3.fromHex("#000000"),
-        Panel = Color3.fromHex("#111111"),
-        Text = Color3.fromHex("#FFFFFF"),
-        Accent = Color3.fromHex("#555555"),
-        Outline = Color3.fromHex("#222222")
-    }
-})
+M1_IDLE = "rbxassetid://95534553319958"
+M1_PRESS = "rbxassetid://98264188479023"
+EMOTE_IDLE = "rbxassetid://83007856881977"
+EMOTE_PRESS = "rbxassetid://92438163139266"
 
-Window:EditOpenButton({
-    Title = "VMT hub",
-    Icon = "",
-    CornerRadius = UDim.new(0, 16),
-    StrokeThickness = 2,
-    Color = ColorSequence.new(Color3.fromHex("222222"), Color3.fromHex("555555")),
-    OnlyMobile = false,
-    Enabled = true,
-    Draggable = true
-})
---[Supa]
+isActionActive = false
+loadedAnims = {}
+
+Settings = {
+    AbaDraggable = false,
+    AbaRotation = false,
+    EmoteDraggable = false
+}
+
+function getCharacterAndHumanoid()
+    local Character = LocalPlayer.Character
+    local Humanoid = Character and Character:FindFirstChildOfClass("Humanoid")
+    return Character, Humanoid
+end
+
+function stopAllAnimations()
+    local _, humanoid = getCharacterAndHumanoid()
+    local animator = humanoid and humanoid:FindFirstChildOfClass("Animator")
+    if animator then
+        pcall(function()
+            for _, track in ipairs(animator:GetPlayingAnimationTracks()) do
+                track:Stop()
+            end
+        end)
+    end
+end
+
+function playAnimation(animationId)
+    local _, humanoid = getCharacterAndHumanoid()
+    if humanoid then
+        local animator = humanoid:FindFirstChildOfClass("Animator") or Instance.new("Animator", humanoid)
+        local animation = loadedAnims[animationId] or Instance.new("Animation")
+        if not loadedAnims[animationId] then
+            animation.AnimationId = "rbxassetid://" .. tostring(animationId)
+            loadedAnims[animationId] = animation
+        end
+        local success, track = pcall(function() return animator:LoadAnimation(animation) end)
+        if success and track then
+            track.Priority = Enum.AnimationPriority.Action
+            track:Play()
+            pcall(function() track:AdjustSpeed(1.2) end)
+        end
+    end
+end
+
+function turnCamera(degrees)
+    if not isActionActive then
+        isActionActive = true
+        local character, _ = getCharacterAndHumanoid()
+        local hrp = character and character:FindFirstChild("HumanoidRootPart")
+        if hrp then
+            pcall(function()
+                hrp.CFrame = hrp.CFrame * CFrame.Angles(0, math.rad(degrees), 0)
+                local cameraPosition = Camera and Camera.CFrame.Position or hrp.Position + Vector3.new(0, 5, 0)
+                local cameraY = cameraPosition.Y
+                local offsetVector = cameraPosition - hrp.Position
+                local horizontalOffset = Vector3.new(offsetVector.X, 0, offsetVector.Z)
+                local rotatedOffset = CFrame.fromAxisAngle(Vector3.yAxis, math.rad(degrees)) * horizontalOffset
+                local newCameraLookAt = hrp.Position + rotatedOffset
+                if Camera and Camera:IsA("Camera") then
+                    Camera.CFrame = CFrame.lookAt(Vector3.new(newCameraLookAt.X, cameraY, newCameraLookAt.Z), hrp.Position)
+                end
+            end)
+        end
+        isActionActive = false
+    end
+end
+
+function tweenMove(direction, distance, duration)
+    if not isActionActive then
+        isActionActive = true
+        local character, _ = getCharacterAndHumanoid()
+        local hrp = character and character:FindFirstChild("HumanoidRootPart")
+        if hrp then
+            local tween = TweenService:Create(hrp, TweenInfo.new(duration, Enum.EasingStyle.Sine, Enum.EasingDirection.Out), {
+                CFrame = hrp.CFrame * CFrame.new(direction * distance, 0, 0)
+            })
+            pcall(function() 
+                tween:Play() 
+                tween.Completed:Wait() 
+                tween:Destroy() 
+            end)
+        end
+        isActionActive = false
+    end
+end
+
+function applyBodyVelocity(directionX, distanceMultiplier, verticalForce, maxSpeed, duration)
+    if not isActionActive then
+        isActionActive = true
+        local character, _ = getCharacterAndHumanoid()
+        local hrp = character and character:FindFirstChild("HumanoidRootPart")
+        if hrp then
+            local bodyVelocity = Instance.new("BodyVelocity")
+            local velocityVector = hrp.CFrame.RightVector * directionX * distanceMultiplier + Vector3.new(0, verticalForce, 0)
+            if velocityVector.Magnitude == 0 then velocityVector = Vector3.new(0, 1, 0) end
+            bodyVelocity.Velocity = velocityVector.Unit * maxSpeed
+            bodyVelocity.MaxForce = Vector3.new(math.huge, math.huge, math.huge)
+            bodyVelocity.Parent = hrp
+            task.delay(duration, function() pcall(function() bodyVelocity:Destroy() end) end)
+        end
+        isActionActive = false
+    end
+end
+
+function M1_RESET_FUNCTION()
+    stopAllAnimations()
+    pcall(function() playAnimation(10480793962) end)
+    pcall(function() tweenMove(1, 26, 0.22) end)
+    
+    if Settings.AbaRotation then
+        pcall(function() turnCamera(70) end)
+    end
+    
+    task.wait(0.003)
+    pcall(function()
+        VirtualInputManager:SendKeyEvent(true, Enum.KeyCode.Q, false, game)
+        VirtualInputManager:SendKeyEvent(false, Enum.KeyCode.Q, false, game)
+    end)
+end
+
+function EMOTE_DASH_FUNCTION()
+    stopAllAnimations()
+    pcall(function() playAnimation(10480793962) end)
+    pcall(function() turnCamera(90) end)
+    pcall(function() applyBodyVelocity(1, 38, 8, 95, 0.27) end)
+end
+
+ScreenGui = Instance.new("ScreenGui", LocalPlayer:WaitForChild("PlayerGui"))
+ScreenGui.Name = "TechButtonsGui"
+ScreenGui.ResetOnSpawn = false
+
+m1Button = Instance.new("ImageButton", ScreenGui)
+m1Button.Size = UDim2.new(0, 60, 0, 60)
+m1Button.Position = UDim2.new(0.7, 0, 0.6, 0)
+m1Button.BackgroundTransparency = 1
+m1Button.Image = M1_IDLE
+m1Button.Visible = false
+
+emoteButton = Instance.new("ImageButton", ScreenGui)
+emoteButton.Size = UDim2.new(0, 60, 0, 60)
+emoteButton.Position = UDim2.new(0.85, 0, 0.6, 0)
+emoteButton.BackgroundTransparency = 1
+emoteButton.Image = EMOTE_IDLE
+emoteButton.Visible = false
+
+function makeButtonDraggable(btn, settingKey)
+    local dragToggle = false
+    local dragStart = nil
+    local startPos = nil
+
+    btn.InputBegan:Connect(function(input)
+        if (input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch) and Settings[settingKey] then
+            dragToggle = true
+            dragStart = input.Position
+            startPos = btn.Position
+        end
+    end)
+    
+    btn.InputEnded:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+            dragToggle = false
+        end
+    end)
+    
+    UIS.InputChanged:Connect(function(input)
+        if dragToggle and (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) then
+            local delta = input.Position - dragStart
+            btn.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
+        end
+    end)
+end
+
+makeButtonDraggable(m1Button, "AbaDraggable")
+makeButtonDraggable(emoteButton, "EmoteDraggable")
+
+m1Button.MouseButton1Down:Connect(function() m1Button.Image = M1_PRESS end)
+m1Button.MouseButton1Up:Connect(function() m1Button.Image = M1_IDLE end)
+m1Button.MouseLeave:Connect(function() m1Button.Image = M1_IDLE end)
+m1Button.MouseButton1Click:Connect(function() pcall(M1_RESET_FUNCTION) end)
+
+emoteButton.MouseButton1Down:Connect(function() emoteButton.Image = EMOTE_PRESS end)
+emoteButton.MouseButton1Up:Connect(function() emoteButton.Image = EMOTE_IDLE end)
+emoteButton.MouseLeave:Connect(function() emoteButton.Image = EMOTE_IDLE end)
+emoteButton.MouseButton1Click:Connect(function() pcall(EMOTE_DASH_FUNCTION) end)
+--Lethal
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+local lp = Players.LocalPlayer
+local animId = "rbxassetid://12296113986"
+local isEnabled = false
+local connection = nil
+
+local function doJump()
+    local char = lp.Character or lp.CharacterAdded:Wait()
+    local hrp = char:WaitForChild("HumanoidRootPart")
+    hrp.AssemblyLinearVelocity = Vector3.new(0, 64, 0)
+end
+
+local function getNearest()
+    local char = lp.Character or lp.CharacterAdded:Wait()
+    local hrp = char:FindFirstChild("HumanoidRootPart")
+    if not hrp then return nil end
+    
+    local target = nil
+    local dist = math.huge
+    
+    local liveFolder = workspace:FindFirstChild("Live")
+    if liveFolder then
+        local dummy = liveFolder:FindFirstChild("Weakest Dummy")
+        if dummy and dummy:FindFirstChild("HumanoidRootPart") then
+            local d = (hrp.Position - dummy.HumanoidRootPart.Position).Magnitude
+            if d < dist then
+                target = dummy
+                dist = d
+            end
+        end
+    end
+    
+    for _, p in ipairs(Players:GetPlayers()) do
+        if p ~= lp and p.Character and p.Character:FindFirstChild("HumanoidRootPart") then
+            local d = (hrp.Position - p.Character.HumanoidRootPart.Position).Magnitude
+            if d < dist then
+                target = p
+                dist = d
+            end
+        end
+    end
+    
+    return target
+end
+
+local function aimAssist()
+    local char = lp.Character or lp.CharacterAdded:Wait()
+    local hum = char:WaitForChild("Humanoid")
+    local hrp = char:WaitForChild("HumanoidRootPart")
+    
+    hum.AutoRotate = false
+    
+    local rotConn
+    rotConn = hum:GetPropertyChangedSignal("AutoRotate"):Connect(function()
+        if hum.AutoRotate then
+            hum.AutoRotate = false
+        end
+    end)
+    
+    local target = getNearest()
+    if not target then
+        rotConn:Disconnect()
+        return
+    end
+    
+    local startT = tick()
+    local rsConn
+    
+    rsConn = RunService.RenderStepped:Connect(function()
+        if tick() - startT > 0.38 then
+            rsConn:Disconnect()
+            rotConn:Disconnect()
+            hum.AutoRotate = true
+            return
+        end
+        
+        local thrp = target:FindFirstChild("HumanoidRootPart") or (target.Character and target.Character:FindFirstChild("HumanoidRootPart"))
+        if thrp then
+            local pred = thrp.Position + thrp.AssemblyLinearVelocity * 0.15
+            hrp.CFrame = CFrame.lookAt(hrp.Position, Vector3.new(pred.X, hrp.Position.Y, pred.Z))
+        end
+    end)
+end
+
+local function disableFeature()
+    isEnabled = false
+    if connection then
+        connection:Disconnect()
+        connection = nil
+    end
+end
+
+local function enableFeature()
+    isEnabled = true
+    local char = lp.Character or lp.CharacterAdded:Wait()
+    local hum = char:WaitForChild("Humanoid")
+    
+    connection = hum.AnimationPlayed:Connect(function(animTrack)
+        if animTrack.Animation and animTrack.Animation.AnimationId == animId then
+            task.wait(1.7)
+            doJump()
+            aimAssist()
+            local comms = lp.Character:WaitForChild("Communicate")
+            if comms then
+                comms:FireServer({
+                    Dash = Enum.KeyCode.W,
+                    Key = Enum.KeyCode.Q,
+                    Goal = "KeyPress",
+                })
+            end
+        end
+    end)
+end
+--Supa
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
 
 local LocalPlayer = Players.LocalPlayer
 local supaEnabled = false
+local legitHeightEnabled = false
+local lockTiltEnabled = false
+local cancelOnEvasiveEnabled = false
+local shakeEnabled = true
 local onCooldown = false
 local cooldownTime = 4
 local yOffset = 2.2
@@ -167,26 +472,66 @@ local function executeSupaTech()
         if hum then hum:ChangeState(Enum.HumanoidStateType.Physics) end
     end)
     
+    local tiltAngle = lockTiltEnabled and 0 or math.rad(60)
+    
     if hrp then
-        hrp.CFrame = hrp.CFrame * CFrame.Angles(math.rad(60), 0, 0)
+        hrp.CFrame = hrp.CFrame * CFrame.Angles(tiltAngle, 0, 0)
     end
     
-    local duration = 0.2
+    local duration = lockTiltEnabled and 0.6 or 0.2
     local startTime = tick()
     local cframeConn = nil
     
+    local cancelCurrentTech = false
+    local targetAnimConn
+    local targetAnimatorConn
+    local initialTargetY = targetHrp.Position.Y
+    
+    if cancelOnEvasiveEnabled then
+        local targetHum = target:FindFirstChild("Humanoid")
+        if targetHum then
+            local function onTargetAnim(animTrack)
+                if animTrack and animTrack.Animation then
+                    local id = tostring(animTrack.Animation.AnimationId or "")
+                    if string.find(id, "10480796021", 1, true) or string.find(id, "10491993682", 1, true) or string.find(id, "10470389827", 1, true) then
+                        cancelCurrentTech = true
+                    end
+                end
+            end
+            targetAnimConn = targetHum.AnimationPlayed:Connect(onTargetAnim)
+            local targetAnimator = targetHum:FindFirstChildOfClass("Animator")
+            if targetAnimator then
+                targetAnimatorConn = targetAnimator.AnimationPlayed:Connect(onTargetAnim)
+            end
+        end
+    end
+    
     cframeConn = RunService.Heartbeat:Connect(function()
         local elapsed = tick() - startTime
+        
+        if legitHeightEnabled and (targetHrp.Position.Y - initialTargetY > 14) then
+            cancelCurrentTech = true
+        end
+        
+        if cancelCurrentTech then
+            if cframeConn and cframeConn.Disconnect then
+                pcall(function() cframeConn:Disconnect() end)
+            end
+            return
+        end
+        
         if duration > elapsed then
             local s, cframeCalc = pcall(function()
                 local pos = (targetHrp.Position - targetHrp.CFrame.LookVector * lookOffset) + Vector3.new(0, yOffset, 0)
                 local baseCFrame = CFrame.new(pos)
                 local timeRemaining = duration - elapsed
                 local zAngle = 0
-                if timeRemaining > 0.055 then
+                
+                if shakeEnabled and timeRemaining > 0.055 then
                     zAngle = math.sin(tick() * 110) * 0.35
                 end
-                return baseCFrame * CFrame.Angles(math.rad(60), zAngle, 0)
+                
+                return baseCFrame * CFrame.Angles(tiltAngle, zAngle, 0)
             end)
             if s and cframeCalc and hrp then
                 pcall(function() hrp.CFrame = cframeCalc end)
@@ -198,11 +543,17 @@ local function executeSupaTech()
         end
     end)
     
-    repeat task.wait() until duration <= (tick() - startTime)
+    repeat task.wait() until duration <= (tick() - startTime) or cancelCurrentTech
+    
+    if targetAnimConn then pcall(function() targetAnimConn:Disconnect() end) end
+    if targetAnimatorConn then pcall(function() targetAnimatorConn:Disconnect() end) end
     
     pcall(function()
         if hrp then
-            hrp.CFrame = hrp.CFrame * CFrame.Angles(math.rad(5), math.rad(-25), math.rad(-15))
+            local endX = lockTiltEnabled and 0 or math.rad(5)
+            local endY = lockTiltEnabled and 0 or math.rad(-25)
+            local endZ = lockTiltEnabled and 0 or math.rad(-15)
+            hrp.CFrame = hrp.CFrame * CFrame.Angles(endX, endY, endZ)
         end
         if hum then
             hum:ChangeState(Enum.HumanoidStateType.GettingUp)
@@ -247,13 +598,7 @@ local function setupCharacter(newChar)
         if s2 and conn2 then table.insert(connections, conn2) end
     end
 end
-
-LocalPlayer.CharacterAdded:Connect(setupCharacter)
-if LocalPlayer.Character then
-    setupCharacter(LocalPlayer.Character)
-end
-
---[Kyoto]
+--Kyoto
 local UserInputService, VirtualInputManager, TweenService, Players = game:GetService("UserInputService"), game:GetService("VirtualInputManager"), game:GetService("TweenService"), game:GetService("Players")
 
 local LocalPlayer, isRunning, sideDashDelay, lethalDelay, isButtonDraggable = Players.LocalPlayer, false, 2.27, 0, false
@@ -391,8 +736,7 @@ UserInputService.InputChanged:Connect(function(input)
 end)
 
 kButtonText.MouseButton1Click:Connect(runKyotoMacro)
-
---[Auto Block]
+--Autoblock
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
 local LocalPlayer = Players.LocalPlayer
@@ -536,9 +880,7 @@ local function startDetection()
         end
     end)
 end
-
-
---[Side Dash Assist]
+--Side Dash Assist
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
 local UIS = game:GetService("UserInputService")
@@ -571,7 +913,6 @@ local isDashing, debounce, activeTrack = false, false, nil
 local currentAnimConnection, currentRotateConnection
 local activeDashId, lastAnimTime, lastAnimId = 0, 0, ""
 local velocityHistories = {}
---[Side DASH]
 local function getPingAdaptive()
     local rawMs = 0
     pcall(function()
@@ -1131,8 +1472,7 @@ LP.CharacterAdded:Connect(function(char)
     task.wait(1)
     setupCharacter(char)
 end)
-
---[Headless]
+--Headless
 local P_ = game:GetService("Players")
 local T_ = game:GetService("TweenService")
 local R_ = game:GetService("RunService")
@@ -1208,9 +1548,7 @@ local function apply_effect(char)
         end
     end)
 end
-
-
---[Dashpath]
+--Dash Path
 if isfolder and not isfolder("PathDashSaves") then pcall(makefolder, "PathDashSaves") end
 
 local T = {
@@ -1423,7 +1761,7 @@ local function fetchGlobal()
     local f = {"None"}
     T.gFiles = {}
     if T.gRepo == "" then return f end
-    local s, r = pcall(function() return T.H:JSONDecode(game:HttpGet("https://api.github.com/repos/Zuriyx/Path" .. T.gRepo .. "/contents/")) end)
+    local s, r = pcall(function() return T.H:JSONDecode(game:HttpGet("https://api.github.com/repos/" .. T.gRepo .. "/contents/")) end)
     if s and type(r) == "table" then
         for _, v in ipairs(r) do
             if v.type == "file" and v.name:match("%.json$") then
@@ -1445,367 +1783,9 @@ local function loadGlobal()
         end)
     end
 end
-
-
-
-local discordIconPath = "VMT_DiscordIcon.png"
-if not (isfile and isfile(discordIconPath)) then
-    if writefile then
-        local suc, res = pcall(game.HttpGet, game, "https://raw.githubusercontent.com/github/explore/4b17bd9c0a6b7c5264b361bb54e47767357dd145/topics/discord/discord.png")
-        if suc then writefile(discordIconPath, res) end
-    end
-end
-local discordImg = (isfile and isfile(discordIconPath) and getcustomasset) and getcustomasset(discordIconPath) or "rbxassetid://106831036033040"
-
-local InfoTab = Window:Tab({ Title = "Info", Icon = "info" })
-
-InfoTab:Paragraph({
-    Title = "Support us!!!",
-    Desc = "Join our Discord server to support my small community",
-    Image = discordImg,
-    ImageSize = 64,
-    Buttons = {
-        {
-            Title = "Copy Discord link",
-            Callback = function()
-                if setclipboard then
-                    setclipboard("https://discord.gg/ZXSuYC3upG")
-                end
-            end
-        }
-    }
-})
-
-local FFlagTab = Window:Tab({ Title = "Fflag executor", Icon = "code" })
-local SystemSection = FFlagTab:Section({ Title = "System" })
-
-local exeMode = "Json"
-SystemSection:Dropdown({
-    Title = "Mode",
-    Values = {"Json", "RAW/URL"},
-    Value = "Json",
-    Callback = function(v) exeMode = v end
-})
-
-local flagName = ""
-SystemSection:Input({
-    Title = "Set name",
-    Callback = function(v) flagName = v end
-})
-
-local flagInput = ""
-SystemSection:Input({
-    Title = "Input FFlag Data",
-    Type = "Textarea",
-    Callback = function(v) flagInput = v end
-})
-
-local function setFlg(flgNam, flgVal)
-    local clnNam = flgNam:gsub("^DFFlag", ""):gsub("^FFlag", ""):gsub("^DFInt", ""):gsub("^FInt", ""):gsub("^DFString", ""):gsub("^FString", "")
-    pcall(function() setfflag(tostring(clnNam), tostring(flgVal)) end)
-end
-
-local function lodFlg(jsnDat)
-    local suc, dec = pcall(HttpService.JSONDecode, HttpService, jsnDat)
-    if not suc then return end
-    for n, v in pairs(dec) do
-        setFlg(n, v)
-    end
-end
-
-SystemSection:Button({
-    Title = "Execute",
-    Callback = function()
-        if exeMode == "Json" then
-            lodFlg(flagInput)
-        elseif exeMode == "RAW/URL" then
-            local suc, res = pcall(game.HttpGet, game, flagInput)
-            if suc then lodFlg(res) end
-        end
-    end
-})
-
-local savePath = "VMTHub_SavedFlags.json"
-local savedFlags = {}
-
-if isfile and isfile(savePath) then
-    local suc, data = pcall(function() return HttpService:JSONDecode(readfile(savePath)) end)
-    if suc and type(data) == "table" then
-        savedFlags = data
-    end
-end
-
-local function saveToDisk()
-    if writefile then
-        writefile(savePath, HttpService:JSONEncode(savedFlags))
-    end
-end
-
-local SavedSection = FFlagTab:Section({ Title = "Saved fflags" })
-local selectedSaved = "None"
-
-local savedDropdown = SavedSection:Dropdown({
-    Title = "Select saved",
-    Values = {"None"},
-    Value = "None",
-    Callback = function(v) selectedSaved = v end
-})
-
-local function refreshSavedDropdown()
-    local list = {"None"}
-    for k, _ in pairs(savedFlags) do
-        table.insert(list, k)
-    end
-    savedDropdown:Refresh(list)
-end
-
-refreshSavedDropdown()
-
-SystemSection:Button({
-    Title = "Save",
-    Callback = function()
-        if flagName ~= "" and flagInput ~= "" then
-            savedFlags[flagName] = { Type = exeMode, Data = flagInput }
-            saveToDisk()
-            refreshSavedDropdown()
-        end
-    end
-})
-
-SavedSection:Button({
-    Title = "Execute",
-    Callback = function()
-        if selectedSaved ~= "None" and savedFlags[selectedSaved] then
-            local fData = savedFlags[selectedSaved]
-            if fData.Type == "Json" then
-                lodFlg(fData.Data)
-            elseif fData.Type == "RAW/URL" then
-                local suc, res = pcall(game.HttpGet, game, fData.Data)
-                if suc then lodFlg(res) end
-            end
-        end
-    end
-})
-
-local GlobalSection = FFlagTab:Section({ Title = "Global fflags" })
-local globalFlagsList = {"None"}
-local globalFlagsData = {}
-local selectedGlobal = "None"
-
-local globalDropdown = GlobalSection:Dropdown({
-    Title = "Community Flags",
-    Values = globalFlagsList,
-    Value = "None",
-    Callback = function(v) selectedGlobal = v end
-})
---[Hello byte i see u]
-task.spawn(function()
-    local suc, res = pcall(game.HttpGet, game, "https://api.github.com/repos/Zuriyx/Global-fflags/contents/")
-    if suc then
-        local suc2, dec = pcall(HttpService.JSONDecode, HttpService, res)
-        if suc2 and type(dec) == "table" then
-            for _, file in ipairs(dec) do
-                if file.type == "file" and (file.name:sub(-5) == ".json" or file.name:sub(-4) == ".txt") then
-                    local name = file.name:gsub("%.json$", ""):gsub("%.txt$", "")
-                    table.insert(globalFlagsList, name)
-                    globalFlagsData[name] = file.download_url
-                end
-            end
-            globalDropdown:Refresh(globalFlagsList)
-        end
-    end
-end)
-
-GlobalSection:Button({
-    Title = "Execute Global",
-    Callback = function()
-        if selectedGlobal ~= "None" and globalFlagsData[selectedGlobal] then
-            local url = globalFlagsData[selectedGlobal]
-            local suc, res = pcall(game.HttpGet, game, url)
-            if suc then
-                lodFlg(res)
-            end
-        end
-    end
-})
-
-local HttpService = game:GetService("HttpService")
-
-local ModifierTab = Window:Tab({ Title = "Shiftlock Modifier", Icon = "mouse-pointer" })
-local ConfigSection = ModifierTab:Section({ Title = "Configuration" })
-
-local player = game:GetService("Players").LocalPlayer
-local gui = player:WaitForChild("PlayerGui")
-local shiftlock = gui:WaitForChild("MobileShiftlockCursor", 5)
-local cursor = shiftlock and shiftlock:FindFirstChild("CursorImage")
-local originalImage = cursor and cursor.Image or "rbxassetid://15444391295"
-local finalImage = ""
-local isOverriding = false
-
-if cursor then
-    cursor:GetPropertyChangedSignal("Image"):Connect(function()
-        if isOverriding and cursor.Image ~= finalImage then
-            cursor.Image = finalImage
-        end
-    end)
-end
-
-local function applyShiftlock(imgUrl, assetName)
-    if not cursor then return end
-    isOverriding = true
-    if imgUrl:match("^http") then
-        if isfile and isfile(assetName) then
-            finalImage = getcustomasset(assetName)
-        else
-            local suc, imgData = pcall(game.HttpGet, game, imgUrl)
-            if suc and writefile and isfile then
-                writefile(assetName, imgData)
-                finalImage = getcustomasset(assetName)
-            else
-                finalImage = imgUrl
-            end
-        end
-    else
-        finalImage = imgUrl
-    end
-    cursor.Image = finalImage
-end
-
-ConfigSection:Button({
-    Title = "Reset",
-    Callback = function()
-        isOverriding = false
-        if cursor then
-            cursor.Image = originalImage
-        end
-    end
-})
-
-local repoFiles = {}
-local loading = false
-local loadIndex = 1
-
-local function fetchRepoFiles()
-    if #repoFiles > 0 or loading then return true end
-    loading = true
-    local suc, res = pcall(game.HttpGet, game, "https://api.github.com/repos/Zuriyx/Shiftlock/contents/")
-    loading = false
-    if suc then
-        local suc2, dec = pcall(HttpService.JSONDecode, HttpService, res)
-        if suc2 and type(dec) == "table" then
-            for _, file in ipairs(dec) do
-                if file.type == "file" and (file.name:sub(-4) == ".png" or file.name:sub(-4) == ".jpg" or file.name:sub(-5) == ".jpeg") then
-                    table.insert(repoFiles, file)
-                end
-            end
-            return true
-        end
-    end
-    return false
-end
-
-ConfigSection:Button({
-    Title = "Load Library (5 images)",
-    Callback = function()
-        task.spawn(function()
-            local ready = fetchRepoFiles()
-            if not ready or #repoFiles == 0 then return end
-            
-            local max = math.min(loadIndex + 4, #repoFiles)
-            for i = loadIndex, max do
-                local file = repoFiles[i]
-                local name = file.name:gsub("%.png$", ""):gsub("%.jpg$", ""):gsub("%.jpeg$", "")
-                local url = file.download_url
-                local assetName = "sl_" .. file.name
-                local dateStr = os.date("%Y-%m-%d")
-                
-                local localImg = url
-                if isfile and writefile and getcustomasset then
-                    if not isfile(assetName) then
-                        pcall(function() writefile(assetName, game:HttpGet(url)) end)
-                    end
-                    if isfile(assetName) then
-                        localImg = getcustomasset(assetName)
-                    end
-                end
-
-                ConfigSection:Paragraph({
-                    Title = name,
-                    Desc = "Date: " .. dateStr,
-                    Image = localImg,
-                    ImageSize = 64,
-                    Buttons = {
-                        {
-                            Title = "Set Shiftlock",
-                            Callback = function()
-                                applyShiftlock(url, assetName)
-                            end
-                        }
-                    }
-                })
-            end
-            
-            loadIndex = max + 1
-            if loadIndex > #repoFiles then
-                loadIndex = 1
-            end
-        end)
-    end
-})
-
-local GamepassTab = Window:Tab({ Title = "Free Gamepasses", Icon = "person-standing" })
-local GamepassSection = GamepassTab:Section({ Title = "Unlock Gamepasses" })
-
-GamepassSection:Button({
-    Title = "Unlock VIP Server Owner",
-    Callback = function()
-        workspace:SetAttribute("VIPServer", tostring(game.Players.LocalPlayer.UserId))
-        workspace:SetAttribute("VIPServerOwner", game.Players.LocalPlayer.Name)
-    end
-})
-
-GamepassSection:Button({
-    Title = "Unlock Extra Slots",
-    Callback = function()
-        local player = game:GetService("Players").LocalPlayer
-        game:GetService("RunService").RenderStepped:Connect(function()
-            if player then
-                player:SetAttribute("ExtraSlots", true)
-            end
-        end)
-    end
-})
-
-GamepassSection:Button({
-    Title = "Unlock Emote Search Bar",
-    Callback = function()
-        local player = game:GetService("Players").LocalPlayer
-        game:GetService("RunService").RenderStepped:Connect(function()
-            if player then
-                player:SetAttribute("EmoteSearchBar", true)
-            end
-        end)
-    end
-})
-
-GamepassSection:Button({
-    Title = "Unlock Extra Emote Pages",
-    Callback = function()
-        local player = game:GetService("Players").LocalPlayer
-        game:GetService("RunService").RenderStepped:Connect(function()
-            if player then
-                player:SetAttribute("EmotePages", true)
-            end
-        end)
-    end
-})
-
-local GamepassSection = GamepassTab:Section({ Title = "Unlock Cosmetics" })
-
-GamepassSection:Button({
-    Title = "Unlock All Emotes (V2)",
-    Callback = function()
-        local allowLimited = true
+--Other
+local function GetAllEmotesShit()
+    local allowLimited = true
 local allowKill = true
 local allowVfx = true
 
@@ -2148,13 +2128,10 @@ task.spawn(function()
         end
     end
 end)
-    end
-})
+end
 
-GamepassSection:Button({
-    Title = "Unlock All Tittles, Cosmetics & Auras.",
-    Callback = function()
-        local Var1 = game.Players.LocalPlayer
+local function GetAllCosmeticShit()
+    local Var1 = game.Players.LocalPlayer
 local Var2 = require(game.ReplicatedStorage.Info)
 
 local Var3 = Var1.PlayerGui:FindFirstChild("Cosmetics", true)
@@ -2340,18 +2317,410 @@ if Var_blk then
         p.button = Var_nb
     end
 end
+end
+--ArcadeFont
+UiLib:SetFont("rbxassetid://12187371840")
+--MainWin
+local MainWindow = UiLib:CreateWindow({
+    Title = "VMT hub 1.2",
+    Desc = "Made by Zuri",
+    Icon = "",
+    Theme = "Violet",
+    Colors = {
+        Background = Color3.fromHex("#000000"),
+        Panel = Color3.fromHex("#111111"),
+        Text = Color3.fromHex("#FFFFFF"),
+        Accent = Color3.fromHex("#555555"),
+        Outline = Color3.fromHex("#222222")
+    }
+})
+--Mobile Opem button
+MainWindow:EditOpenButton({
+    Title = "VMT hub",
+    Icon = "",
+    CornerRadius = UDim.new(0, 16),
+    StrokeThickness = 2,
+    Color = ColorSequence.new(Color3.fromHex("222222"), Color3.fromHex("555555")),
+    OnlyMobile = false,
+    Enabled = true,
+    Draggable = true
+})
+--DiscordTab
+local discordIconPath = "VMT_DiscordIcon.png"
+if not (isfile and isfile(discordIconPath)) then
+    if writefile then
+        local suc, res = pcall(game.HttpGet, game, "https://raw.githubusercontent.com/github/explore/4b17bd9c0a6b7c5264b361bb54e47767357dd145/topics/discord/discord.png")
+        if suc then writefile(discordIconPath, res) end
+    end
+end
+local discordImg = (isfile and isfile(discordIconPath) and getcustomasset) and getcustomasset(discordIconPath) or "rbxassetid://106831036033040"
+
+local InfoTab = MainWindow:Tab({ Title = "Info", Icon = "info" })
+
+InfoTab:Paragraph({
+    Title = "Support us!!!",
+    Desc = "Join our Discord server to support my small community",
+    Image = discordImg,
+    ImageSize = 64,
+    Buttons = {
+        {
+            Title = "Copy Discord link", --Plz join to my discord bro
+            Callback = function()
+                if setclipboard then
+                    setclipboard("https://discord.gg/ZXSuYC3upG")
+                end
+            end
+        }
+    }
+})
+--fflagtab
+local FFlagTab = MainWindow:Tab({ Title = "Fflag executor", Icon = "code" })
+local SystemSection = FFlagTab:Section({ Title = "System" })
+
+local exeMode = "Json"
+SystemSection:Dropdown({
+    Title = "Mode",
+    Values = {"Json", "RAW/URL"},
+    Value = "Json",
+    Callback = function(v) exeMode = v end
+})
+
+local flagName = ""
+SystemSection:Input({
+    Title = "Set name",
+    Callback = function(v) flagName = v end
+})
+
+local flagInput = ""
+SystemSection:Input({
+    Title = "Input FFlag Data",
+    Type = "Textarea",
+    Callback = function(v) flagInput = v end
+})
+
+local function setFlg(flgNam, flgVal)
+    local clnNam = flgNam:gsub("^DFFlag", ""):gsub("^FFlag", ""):gsub("^DFInt", ""):gsub("^FInt", ""):gsub("^DFString", ""):gsub("^FString", "")
+    pcall(function() setfflag(tostring(clnNam), tostring(flgVal)) end)
+end
+
+local function lodFlg(jsnDat)
+    local suc, dec = pcall(HttpService.JSONDecode, HttpService, jsnDat)
+    if not suc then return end
+    for n, v in pairs(dec) do
+        setFlg(n, v)
+    end
+end
+
+SystemSection:Button({
+    Title = "Execute",
+    Callback = function()
+        if exeMode == "Json" then
+            lodFlg(flagInput)
+        elseif exeMode == "RAW/URL" then
+            local suc, res = pcall(game.HttpGet, game, flagInput)
+            if suc then lodFlg(res) end
+        end
     end
 })
 
-Window:Section({
-    Title = "Local Techs"
+local savePath = "VMTHub_SavedFlags.json"
+local savedFlags = {}
+
+if isfile and isfile(savePath) then
+    local suc, data = pcall(function() return HttpService:JSONDecode(readfile(savePath)) end)
+    if suc and type(data) == "table" then
+        savedFlags = data
+    end
+end
+
+local function saveToDisk()
+    if writefile then
+        writefile(savePath, HttpService:JSONEncode(savedFlags))
+    end
+end
+
+local SavedSection = FFlagTab:Section({ Title = "Saved fflags" })
+local selectedSaved = "None"
+
+local savedDropdown = SavedSection:Dropdown({
+    Title = "Select saved",
+    Values = {"None"},
+    Value = "None",
+    Callback = function(v) selectedSaved = v end
 })
 
-local LocalTechsTab = Window:Tab({ Title = "Legit Supa (Beta)", Icon = "cpu" })
+local function refreshSavedDropdown()
+    local list = {"None"}
+    for k, _ in pairs(savedFlags) do
+        table.insert(list, k)
+    end
+    savedDropdown:Refresh(list)
+end
 
-local MainSection = LocalTechsTab:Section({ Title = "Supa Tech" })
+refreshSavedDropdown()
 
-local supaToggle = MainSection:Toggle({
+SystemSection:Button({
+    Title = "Save",
+    Callback = function()
+        if flagName ~= "" and flagInput ~= "" then
+            savedFlags[flagName] = { Type = exeMode, Data = flagInput }
+            saveToDisk()
+            refreshSavedDropdown()
+        end
+    end
+})
+
+SavedSection:Button({
+    Title = "Execute",
+    Callback = function()
+        if selectedSaved ~= "None" and savedFlags[selectedSaved] then
+            local fData = savedFlags[selectedSaved]
+            if fData.Type == "Json" then
+                lodFlg(fData.Data)
+            elseif fData.Type == "RAW/URL" then
+                local suc, res = pcall(game.HttpGet, game, fData.Data)
+                if suc then lodFlg(res) end
+            end
+        end
+    end
+})
+
+local GlobalSection = FFlagTab:Section({ Title = "Global fflags" })
+local globalFlagsList = {"None"}
+local globalFlagsData = {}
+local selectedGlobal = "None"
+
+local globalDropdown = GlobalSection:Dropdown({
+    Title = "Community Flags",
+    Values = globalFlagsList,
+    Value = "None",
+    Callback = function(v) selectedGlobal = v end
+})
+
+task.spawn(function()
+    local suc, res = pcall(game.HttpGet, game, "https://api.github.com/repos/Zuriyx/Global-fflags/contents/")
+    if suc then
+        local suc2, dec = pcall(HttpService.JSONDecode, HttpService, res)
+        if suc2 and type(dec) == "table" then
+            for _, file in ipairs(dec) do
+                if file.type == "file" and (file.name:sub(-5) == ".json" or file.name:sub(-4) == ".txt") then
+                    local name = file.name:gsub("%.json$", ""):gsub("%.txt$", "")
+                    table.insert(globalFlagsList, name)
+                    globalFlagsData[name] = file.download_url
+                end
+            end
+            globalDropdown:Refresh(globalFlagsList)
+        end
+    end
+end)
+
+GlobalSection:Button({
+    Title = "Execute Global",
+    Callback = function()
+        if selectedGlobal ~= "None" and globalFlagsData[selectedGlobal] then
+            local url = globalFlagsData[selectedGlobal]
+            local suc, res = pcall(game.HttpGet, game, url)
+            if suc then
+                lodFlg(res)
+            end
+        end
+    end
+})
+--Shiflocktab
+local ModifierTab = MainWindow:Tab({ Title = "Shiftlock Modifier", Icon = "mouse-pointer" })
+local ConfigSection = ModifierTab:Section({ Title = "Configuration" })
+
+local player = game:GetService("Players").LocalPlayer
+local gui = player:WaitForChild("PlayerGui")
+local shiftlock = gui:WaitForChild("MobileShiftlockCursor", 5)
+local cursor = shiftlock and shiftlock:FindFirstChild("CursorImage")
+local originalImage = cursor and cursor.Image or "rbxassetid://15444391295"
+local finalImage = ""
+local isOverriding = false
+
+if cursor then
+    cursor:GetPropertyChangedSignal("Image"):Connect(function()
+        if isOverriding and cursor.Image ~= finalImage then
+            cursor.Image = finalImage
+        end
+    end)
+end
+
+local function applyShiftlock(imgUrl, assetName)
+    if not cursor then return end
+    isOverriding = true
+    if imgUrl:match("^http") then
+        if isfile and isfile(assetName) then
+            finalImage = getcustomasset(assetName)
+        else
+            local suc, imgData = pcall(game.HttpGet, game, imgUrl)
+            if suc and writefile and isfile then
+                writefile(assetName, imgData)
+                finalImage = getcustomasset(assetName)
+            else
+                finalImage = imgUrl
+            end
+        end
+    else
+        finalImage = imgUrl
+    end
+    cursor.Image = finalImage
+end
+
+ConfigSection:Button({
+    Title = "Reset",
+    Callback = function()
+        isOverriding = false
+        if cursor then
+            cursor.Image = originalImage
+        end
+    end
+})
+
+local repoFiles = {}
+local loading = false
+local loadIndex = 1
+
+local function fetchRepoFiles()
+    if #repoFiles > 0 or loading then return true end
+    loading = true
+    local suc, res = pcall(game.HttpGet, game, "https://api.github.com/repos/Zuriyx/Shiftlock/contents/")
+    loading = false
+    if suc then
+        local suc2, dec = pcall(HttpService.JSONDecode, HttpService, res)
+        if suc2 and type(dec) == "table" then
+            for _, file in ipairs(dec) do
+                if file.type == "file" and (file.name:sub(-4) == ".png" or file.name:sub(-4) == ".jpg" or file.name:sub(-5) == ".jpeg") then
+                    table.insert(repoFiles, file)
+                end
+            end
+            return true
+        end
+    end
+    return false
+end
+
+ConfigSection:Button({
+    Title = "Load Library (5 images)",
+    Callback = function()
+        task.spawn(function()
+            local ready = fetchRepoFiles()
+            if not ready or #repoFiles == 0 then return end
+            
+            local max = math.min(loadIndex + 4, #repoFiles)
+            for i = loadIndex, max do
+                local file = repoFiles[i]
+                local name = file.name:gsub("%.png$", ""):gsub("%.jpg$", ""):gsub("%.jpeg$", "")
+                local url = file.download_url
+                local assetName = "sl_" .. file.name
+                local dateStr = os.date("%Y-%m-%d")
+                
+                local localImg = url
+                if isfile and writefile and getcustomasset then
+                    if not isfile(assetName) then
+                        pcall(function() writefile(assetName, game:HttpGet(url)) end)
+                    end
+                    if isfile(assetName) then
+                        localImg = getcustomasset(assetName)
+                    end
+                end
+
+                ConfigSection:Paragraph({
+                    Title = name,
+                    Desc = "Date: " .. dateStr,
+                    Image = localImg,
+                    ImageSize = 64,
+                    Buttons = {
+                        {
+                            Title = "Set Shiftlock",
+                            Callback = function()
+                                applyShiftlock(url, assetName)
+                            end
+                        }
+                    }
+                })
+            end
+            
+            loadIndex = max + 1
+            if loadIndex > #repoFiles then
+                loadIndex = 1
+            end
+        end)
+    end
+})
+--FreeStufftab
+local GamepassTab = MainWindow:Tab({ Title = "Free Gamepasses", Icon = "person-standing" })
+local GamepassSection = GamepassTab:Section({ Title = "Unlock Gamepasses" })
+
+GamepassSection:Button({
+    Title = "Unlock VIP Server Owner",
+    Callback = function()
+        workspace:SetAttribute("VIPServer", tostring(game.Players.LocalPlayer.UserId))
+        workspace:SetAttribute("VIPServerOwner", game.Players.LocalPlayer.Name)
+    end
+})
+
+GamepassSection:Button({
+    Title = "Unlock Extra Slots",
+    Callback = function()
+        local player = game:GetService("Players").LocalPlayer
+        game:GetService("RunService").RenderStepped:Connect(function()
+            if player then
+                player:SetAttribute("ExtraSlots", true)
+            end
+        end)
+    end
+})
+
+GamepassSection:Button({
+    Title = "Unlock Emote Search Bar",
+    Callback = function()
+        local player = game:GetService("Players").LocalPlayer
+        game:GetService("RunService").RenderStepped:Connect(function()
+            if player then
+                player:SetAttribute("EmoteSearchBar", true)
+            end
+        end)
+    end
+})
+
+GamepassSection:Button({
+    Title = "Unlock Extra Emote Pages",
+    Callback = function()
+        local player = game:GetService("Players").LocalPlayer
+        game:GetService("RunService").RenderStepped:Connect(function()
+            if player then
+                player:SetAttribute("EmotePages", true)
+            end
+        end)
+    end
+})
+
+local GamepassSection = GamepassTab:Section({ Title = "Unlock Cosmetics" })
+
+GamepassSection:Button({
+    Title = "Unlock All Emotes (V2)",
+    Callback = function()
+        GetAllEmotesShit()
+    end
+})
+
+GamepassSection:Button({
+    Title = "Unlock All Tittles, Cosmetics & Auras.",
+    Callback = function()
+        GetAllCosmeticShit()
+    end
+})
+--Techs stuff
+MainWindow:Section({
+    Title = "Local Techs"
+})
+--Supa
+local LocalTechsTab = MainWindow:Tab({ Title = "Legit Supa (Beta)", Icon = "cpu" })
+
+local SupaSection = LocalTechsTab:Section({ Title = "Supa Tech V2" })
+
+local supaToggle = SupaSection:Toggle({
     Title = "Enable Supa Tech",
     Value = false,
     Callback = function(state)
@@ -2359,7 +2728,7 @@ local supaToggle = MainSection:Toggle({
     end
 })
 
-MainSection:Keybind({
+SupaSection:Keybind({
     Title = "Toggle Keybind",
     Value = "None",
     Callback = function()
@@ -2368,7 +2737,41 @@ MainSection:Keybind({
     end
 })
 
-local LocalTechs1Tab = Window:Tab({ Title = "Legit Kyoto Macro (Beta)", Icon = "cpu" })
+SupaSection:Toggle({
+    Title = "Legit height",
+    Desc = "If the player levels up more than required, the tech is canceled.",
+    Value = false,
+    Callback = function(state)
+        legitHeightEnabled = state
+    end
+})
+
+SupaSection:Toggle({
+    Title = "Lock player tilt",
+    Value = false,
+    Callback = function(state)
+        lockTiltEnabled = state
+    end
+})
+
+SupaSection:Toggle({
+    Title = "Shake Player",
+    Value = true,
+    Callback = function(state)
+        shakeEnabled = state
+    end
+})
+
+SupaSection:Toggle({
+    Title = "Cancel tech if evasive is used",
+    Value = false,
+    Callback = function(state)
+        cancelOnEvasiveEnabled = state
+    end
+})
+
+--Kyoto
+local LocalTechs1Tab = MainWindow:Tab({ Title = "Legit Kyoto Macro (Beta)", Icon = "cpu" })
 local MainSection = LocalTechs1Tab:Section({ Title = "Legit Kyoto Macro (Beta)" })
 
 MainSection:Toggle({
@@ -2418,35 +2821,89 @@ SettingsSection:Input({
         end
     end
 })
-
-local Players = game:GetService("Players")
-local LocalPlayer = Players.LocalPlayer
-local twistedEnabled = false
-
-local LocalTechs2Tab = Window:Tab({ Title = "Legit Basic Twisted", Icon = "cpu" })
-
-local TechSection = LocalTechs2Tab:Section({ 
-    Title = "Twisted Tech" 
+--Lethal
+local LethalTab = MainWindow:Tab({
+    Title = "Lethal Tech",
+    Icon = "cpu"
 })
 
-local twistedToggle = TechSection:Toggle({
-    Title = "Enable Twisted Tech",
-    Value = false,
+LethalTab:Toggle({
+    Title = "Lethal Dash",
+    Default = false,
     Callback = function(state)
-        twistedEnabled = state
+        isEnabled = state
+        if isEnabled then
+            enableFeature()
+        else
+            disableFeature()
+        end
     end
 })
 
-TechSection:Keybind({
+LethalTab:Keybind({
     Title = "Toggle Keybind",
-    Value = "None",
+    Key = "F",
     Callback = function()
-        twistedEnabled = not twistedEnabled
-        twistedToggle:Set(twistedEnabled)
+        isEnabled = not isEnabled
+        if isEnabled then
+            enableFeature()
+        else
+            disableFeature()
+        end
     end
 })
 
-local PathTab = Window:Tab({ Title = "Dash Modifier", Icon = "repeat-2" })
+lp.CharacterAdded:Connect(function()
+    disableFeature()
+end)
+--Aba
+local AbaTab = MainWindow:Tab({ Title = "Aba Tech", Icon = "cpu" })
+
+AbaTab:Toggle({
+    Title = "Show Button",
+    Value = false,
+    Callback = function(v) m1Button.Visible = v end
+})
+
+AbaTab:Toggle({
+    Title = "Draggable Button",
+    Value = false,
+    Callback = function(v) Settings.AbaDraggable = v end
+})
+
+AbaTab:Toggle({
+    Title = "Enable Rotation",
+    Value = false,
+    Callback = function(v) Settings.AbaRotation = v end
+})
+
+AbaTab:Keybind({
+    Title = "Activate Aba Tech",
+    Key = "None",
+    Callback = function() pcall(M1_RESET_FUNCTION) end
+})
+--Emordash
+local EmoteTab = MainWindow:Tab({ Title = "Emote Dash", Icon = "zap" })
+
+EmoteTab:Toggle({
+    Title = "Show Button",
+    Value = false,
+    Callback = function(v) emoteButton.Visible = v end
+})
+
+EmoteTab:Toggle({
+    Title = "Draggable Button",
+    Value = false,
+    Callback = function(v) Settings.EmoteDraggable = v end
+})
+
+EmoteTab:Keybind({
+    Title = "Activate Emote Dash",
+    Key = "None",
+    Callback = function() pcall(EMOTE_DASH_FUNCTION) end
+})
+--PathMod
+local PathTab = MainWindow:Tab({ Title = "Dash Modifier", Icon = "repeat-2" })
 local PathSection = PathTab:Section({ Title = "Dash Path" })
 
 PathSection:Toggle({
@@ -2551,15 +3008,15 @@ PathConfigSection:Button({
     end
 })
 
-local LocalTechs3Tab = Window:Tab({
+local LocalTechs3Tab = MainWindow:Tab({
     Title = "Coming Soon",
     Icon = "cpu",
     Locked = "true",
 })
 
-Window:Section({ Title = "Utility" })
+MainWindow:Section({ Title = "Utility" })
 
-local DashTab = Window:Tab({ Title = "Side Dash", Icon = "zap" })
+local DashTab = MainWindow:Tab({ Title = "Side Dash", Icon = "zap" })
 local UtilitySection = DashTab:Section({ Title = "Side Dash Assist (Beta)" })
 
 UtilitySection:Toggle({
@@ -2571,13 +3028,6 @@ UtilitySection:Toggle({
 })
 
 local OtherSideDash = DashTab:Section({ Title = "Side Dash Assist (Individual scripts)" })
-
-OtherSideDash:Button({
-    Title = "Side Dash Assist V1 (Merebennie)",
-    Callback = function()
-        loadstring(game:HttpGet("https://raw.githubusercontent.com/Zuriyx/Techs/refs/heads/main/Side-Dash-Assist-V1.txt"))()
-    end
-})
 
 OtherSideDash:Button({
     Title = "Side Dash Assist V2 (Merebennie)",
@@ -2593,7 +3043,7 @@ OtherSideDash:Button({
     end
 })
 
-local ABT = Window:Tab({ Title = "Auto Block (Beta)", Icon = "shield" })
+local ABT = MainWindow:Tab({ Title = "Auto Block (Beta)", Icon = "shield" })
 local ABM = ABT:Section({ Title = "Auto Block" })
 local ABC = ABT:Section({ Title = "Configuration" })
 
@@ -2650,8 +3100,8 @@ ABC:Input({
         end
     end
 })
-
-local Efc = Window:Section({
+--VFxstuff
+local Efc = MainWindow:Section({
     Title = "Effects and more"
 })
 
@@ -2661,7 +3111,7 @@ local Debris = game:GetService("Debris")
 local RepS = game:GetService("ReplicatedStorage")
 local Cons = {}
 
-local EffectsTab = Efc:Tab({ Title = "Visual", Icon = "sparkles" })
+local EffectsTab = MainWindow:Tab({ Title = "Visual", Icon = "sparkles" })
 
 EffectsTab:Dropdown({
     Title = "Select Effect",
