@@ -337,24 +337,26 @@ local function enableFeature()
     end)
 end
 --Supa
-local Players = game:GetService("Players")
-local RunService = game:GetService("RunService")
+Players = game:GetService("Players")
+RunService = game:GetService("RunService")
 
-local LocalPlayer = Players.LocalPlayer
-local supaEnabled = false
-local legitHeightEnabled = false
-local lockTiltEnabled = false
-local cancelOnEvasiveEnabled = false
-local shakeEnabled = true
-local onCooldown = false
-local cooldownTime = 4
-local yOffset = 2.2
-local lookOffset = 0.3
+LocalPlayer = Players.LocalPlayer
+supaEnabled = false
+legitHeightEnabled = false
+lockTiltEnabled = false
+cancelOnEvasiveEnabled = false
+shakeEnabled = true
+onCooldown = false
+cooldownTime = 4
+yOffset = 2.2
+lookOffset = 0.3
 
-local connections = {}
-local char, hum, hrp
+connections = {}
+char = nil
+hum = nil
+hrp = nil
 
-local function clearConnections()
+function clearConnections()
     for _, conn in pairs(connections) do
         if conn and conn.Disconnect then
             pcall(function() conn:Disconnect() end)
@@ -363,14 +365,14 @@ local function clearConnections()
     table.clear(connections)
 end
 
-local function getClosest()
+function getClosest()
     if not hrp then return nil end
-    local target = nil
-    local minDist = 20
+    target = nil
+    minDist = 20
     
     for _, obj in pairs(workspace:GetDescendants()) do
         if obj:IsA("Model") and obj:FindFirstChild("HumanoidRootPart") and obj ~= char then
-            local s, dist = pcall(function()
+            s, dist = pcall(function()
                 return (hrp.Position - obj.HumanoidRootPart.Position).Magnitude
             end)
             if s and dist and dist < minDist then
@@ -382,14 +384,14 @@ local function getClosest()
     return target
 end
 
-local function fireCommunicateMoves()
+function fireCommunicateMoves()
     pcall(function()
         if char and char:FindFirstChild("Communicate") then
             char.Communicate:FireServer({Dash = Enum.KeyCode.W, Key = Enum.KeyCode.Q, Goal = "KeyPress"})
         end
     end)
     pcall(function()
-        local bv = nil
+        bv = nil
         for _, inst in pairs(getnilinstances()) do
             if inst.ClassName == "BodyVelocity" and inst.Name == "moveme" then
                 bv = inst
@@ -402,14 +404,14 @@ local function fireCommunicateMoves()
     end)
 end
 
-local function executeSupaTech()
+function executeSupaTech()
     if not char or not hum or not hrp then return end
-    local target = getClosest()
+    target = getClosest()
     if not target then return end
-    local targetHrp = target:FindFirstChild("HumanoidRootPart")
+    targetHrp = target:FindFirstChild("HumanoidRootPart")
     if not targetHrp then return end
     
-    local oldStats = {}
+    oldStats = {}
     pcall(function()
         oldStats.WalkSpeed = hum.WalkSpeed
         oldStats.JumpPower = hum.JumpPower
@@ -417,8 +419,8 @@ local function executeSupaTech()
         pcall(function() oldStats.AutoRotate = hum.AutoRotate end)
     end)
     
-    local loopConn = nil
-    local function restoreStats()
+    loopConn = nil
+    function restoreStats()
         if loopConn and loopConn.Disconnect then
             pcall(function() loopConn:Disconnect() end)
         end
@@ -472,34 +474,34 @@ local function executeSupaTech()
         if hum then hum:ChangeState(Enum.HumanoidStateType.Physics) end
     end)
     
-    local tiltAngle = lockTiltEnabled and 0 or math.rad(60)
+    tiltAngle = lockTiltEnabled and 0 or math.rad(60)
     
     if hrp then
         hrp.CFrame = hrp.CFrame * CFrame.Angles(tiltAngle, 0, 0)
     end
     
-    local duration = lockTiltEnabled and 0.6 or 0.2
-    local startTime = tick()
-    local cframeConn = nil
+    duration = lockTiltEnabled and 0.6 or 0.2
+    startTime = tick()
+    cframeConn = nil
     
-    local cancelCurrentTech = false
-    local targetAnimConn
-    local targetAnimatorConn
-    local initialTargetY = targetHrp.Position.Y
+    cancelCurrentTech = false
+    targetAnimConn = nil
+    targetAnimatorConn = nil
+    initialTargetY = targetHrp.Position.Y
     
     if cancelOnEvasiveEnabled then
-        local targetHum = target:FindFirstChild("Humanoid")
+        targetHum = target:FindFirstChild("Humanoid")
         if targetHum then
-            local function onTargetAnim(animTrack)
+            function onTargetAnim(animTrack)
                 if animTrack and animTrack.Animation then
-                    local id = tostring(animTrack.Animation.AnimationId or "")
+                    id = tostring(animTrack.Animation.AnimationId or "")
                     if string.find(id, "10480796021", 1, true) or string.find(id, "10491993682", 1, true) or string.find(id, "10470389827", 1, true) then
                         cancelCurrentTech = true
                     end
                 end
             end
             targetAnimConn = targetHum.AnimationPlayed:Connect(onTargetAnim)
-            local targetAnimator = targetHum:FindFirstChildOfClass("Animator")
+            targetAnimator = targetHum:FindFirstChildOfClass("Animator")
             if targetAnimator then
                 targetAnimatorConn = targetAnimator.AnimationPlayed:Connect(onTargetAnim)
             end
@@ -507,7 +509,7 @@ local function executeSupaTech()
     end
     
     cframeConn = RunService.Heartbeat:Connect(function()
-        local elapsed = tick() - startTime
+        elapsed = tick() - startTime
         
         if legitHeightEnabled and (targetHrp.Position.Y - initialTargetY > 14) then
             cancelCurrentTech = true
@@ -521,11 +523,11 @@ local function executeSupaTech()
         end
         
         if duration > elapsed then
-            local s, cframeCalc = pcall(function()
-                local pos = (targetHrp.Position - targetHrp.CFrame.LookVector * lookOffset) + Vector3.new(0, yOffset, 0)
-                local baseCFrame = CFrame.new(pos)
-                local timeRemaining = duration - elapsed
-                local zAngle = 0
+            s, cframeCalc = pcall(function()
+                pos = (targetHrp.Position - targetHrp.CFrame.LookVector * lookOffset) + Vector3.new(0, yOffset, 0)
+                baseCFrame = CFrame.new(pos)
+                timeRemaining = duration - elapsed
+                zAngle = 0
                 
                 if shakeEnabled and timeRemaining > 0.055 then
                     zAngle = math.sin(tick() * 110) * 0.35
@@ -550,9 +552,9 @@ local function executeSupaTech()
     
     pcall(function()
         if hrp then
-            local endX = lockTiltEnabled and 0 or math.rad(5)
-            local endY = lockTiltEnabled and 0 or math.rad(-25)
-            local endZ = lockTiltEnabled and 0 or math.rad(-15)
+            endX = lockTiltEnabled and 0 or math.rad(5)
+            endY = lockTiltEnabled and 0 or math.rad(-25)
+            endZ = lockTiltEnabled and 0 or math.rad(-15)
             hrp.CFrame = hrp.CFrame * CFrame.Angles(endX, endY, endZ)
         end
         if hum then
@@ -562,7 +564,7 @@ local function executeSupaTech()
     restoreStats()
 end
 
-local function checkSupaCooldown()
+function checkSupaCooldown()
     if not supaEnabled or onCooldown then return end
     onCooldown = true
     task.spawn(function() pcall(executeSupaTech) end)
@@ -570,34 +572,41 @@ local function checkSupaCooldown()
     onCooldown = false
 end
 
-local function onAnimationPlayed(animTrack)
+function onAnimationPlayed(animTrack)
     if animTrack and animTrack.Animation then
-        local id = tostring(animTrack.Animation.AnimationId or "")
+        id = tostring(animTrack.Animation.AnimationId or "")
         if string.find(id, "10503381238", 1, true) or string.find(id, "13379003796", 1, true) then
             task.delay(0.3, checkSupaCooldown)
         end
     end
 end
 
-local function setupCharacter(newChar)
+function setupCharacter(newChar)
     clearConnections()
     char = newChar
     hum = char:WaitForChild("Humanoid")
     hrp = char:WaitForChild("HumanoidRootPart")
     
-    local s, conn = pcall(function()
+    s, conn = pcall(function()
         return hum.AnimationPlayed:Connect(onAnimationPlayed)
     end)
     if s and conn then table.insert(connections, conn) end
     
-    local animator = hum:FindFirstChildOfClass("Animator")
+    animator = hum:FindFirstChildOfClass("Animator")
     if animator then
-        local s2, conn2 = pcall(function()
+        s2, conn2 = pcall(function()
             return animator.AnimationPlayed:Connect(onAnimationPlayed)
         end)
         if s2 and conn2 then table.insert(connections, conn2) end
     end
 end
+
+if LocalPlayer.Character then
+    setupCharacter(LocalPlayer.Character)
+end
+
+LocalPlayer.CharacterAdded:Connect(setupCharacter)
+
 --Kyoto
 local UserInputService, VirtualInputManager, TweenService, Players = game:GetService("UserInputService"), game:GetService("VirtualInputManager"), game:GetService("TweenService"), game:GetService("Players")
 
